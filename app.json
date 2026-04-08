@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "PokedexIOS",
+    "name": "Pokedex IA",
     "slug": "PokedexIOS",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -10,7 +10,7 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#dc0a2d"
     },
     "ios": {
       "supportsTablet": true
@@ -18,12 +18,17 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#dc0a2d"
       },
       "edgeToEdgeEnabled": true
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "name": "Pokedex IA",
+      "shortName": "Pokedex",
+      "themeColor": "#dc0a2d",
+      "backgroundColor": "#ffffff",
+      "display": "standalone"
     }
   }
 }
