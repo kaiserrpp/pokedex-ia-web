@@ -5,7 +5,7 @@ import * as Speech from 'expo-speech';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 // --- CONTROL DE VERSIONES ---
-const APP_VERSION = "2026.04.027";
+const APP_VERSION = "2026.04.028";
 
 // --- CONFIGURACIÓN DE IA ---
 const API_KEY = process.env.EXPO_PUBLIC_API_KEY; 
@@ -105,7 +105,8 @@ export default function App() {
   };
 
   const hablar = (nombre, tipoIngles, descripcion, evolucion) => {
-    // ESTA ES LA CLAVE: Cortar cualquier monólogo anterior al instante
+    // ESTA ES LA CLAVE: Cortar la locución de "Buscando en la base de datos" 
+    // en cuanto tenemos la info final lista para leer.
     Speech.stop(); 
     
     const tipoEspanol = TYPES_ES[tipoIngles] || tipoIngles;
@@ -129,9 +130,10 @@ export default function App() {
   const identificarPokemon = async () => {
     if (!cameraRef.current) return;
     
+    // 1. INICIO: Animamos la espera inicial
     try {
       Speech.stop();
-      Speech.speak("Analizando...", { language: 'es-ES', rate: 1.0 });
+      Speech.speak("Analizando Pokémon...", { language: 'es-ES', rate: 1.0 });
     } catch(e) {}
 
     setLoading(true);
@@ -199,9 +201,10 @@ export default function App() {
         return;
       }
 
-      // 2. HITO: Cortamos el "Analizando..." si hemos llegado rápido
+      // 2. HITO DETECCIÓN: Cortamos el "Analizando..." inicial si no había acabado
+      // y lanzamos la información de que ya sabemos quién es.
       Speech.stop();
-      Speech.speak(`${rawName} detectado...`, { language: 'es-ES', rate: 1.0 });
+      Speech.speak(`${rawName} detectado. Buscando en la base de datos...`, { language: 'es-ES', rate: 1.0 });
 
       const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${cleanName}`);
       
@@ -247,7 +250,8 @@ export default function App() {
       const datosCompletos = { ...data, descripcion: descripcionLimpia, evoluciona_de: evolucionaDe, hp: hp };
       setPokemonData(datosCompletos);
       
-      // 4. HITO FINAL: Llamamos a hablar() que automáticamente corta cualquier mensaje pendiente
+      // 3. HITO FINAL: Llamamos a hablar() que cortará el "Buscando en la base de datos..." 
+      // y leerá la información final limpia y clara.
       hablar(datosCompletos.name, datosCompletos.types[0].type.name, descripcionLimpia, evolucionaDe);
       
     } catch (e) {
