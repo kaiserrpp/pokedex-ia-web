@@ -5,7 +5,7 @@ import * as Speech from 'expo-speech';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 // --- CONTROL DE VERSIONES ---
-const APP_VERSION = "2026.04.023";
+const APP_VERSION = "2026.04.024";
 
 // --- CONFIGURACIÓN DE IA ---
 const API_KEY = process.env.EXPO_PUBLIC_API_KEY; 
@@ -117,11 +117,9 @@ export default function App() {
   const identificarPokemon = async () => {
     if (!cameraRef.current) return;
     
-    // --- TRUCO WEB: Despertamos al motor de audio instantáneamente al hacer clic ---
     try {
       Speech.speak(" ", { rate: 1.0, volume: 0.01 }); 
     } catch(e) {}
-    // -------------------------------------------------------------------------------
 
     setLoading(true);
     try {
@@ -217,12 +215,16 @@ export default function App() {
         if (entryEn) {
           const textoIngles = entryEn.flavor_text.replace(/\n|\f/g, ' ');
           try {
+            // --- PARCHE DE RESPIRO PARA GEMINI ---
+            // Le damos 1.5 segundos de pausa a la API para no chocar con la petición anterior
+            await new Promise(resolve => setTimeout(resolve, 1500)); 
+            
             const traductor = genAI.getGenerativeModel({ model: modeloUsado || "gemini-1.5-flash" });
             const promptTrad = `Eres un traductor estricto. Traduce la siguiente descripción de Pokémon al español. Devuelve ÚNICAMENTE el texto traducido de forma natural, sin comillas, sin saludos, sin explicaciones, y sin opciones alternativas. Texto: "${textoIngles}"`;
             const resultTrad = await traductor.generateContent(promptTrad);
             descripcionLimpia = resultTrad.response.text().trim();
           } catch (errTrad) {
-            descripcionLimpia = "Los datos de esta especie están en un idioma desconocido.";
+            descripcionLimpia = "Fallo en el módulo de traducción. La IA está saturada.";
           }
         } else {
           descripcionLimpia = "Pokédex dañada. Datos irrecuperables.";
@@ -315,7 +317,6 @@ export default function App() {
                   <Text style={styles.tcgDescText}>{pokemonData.descripcion}</Text>
                 </View>
 
-                {/* FILA DE BOTONES DENTRO DE LA CARTA */}
                 <View style={styles.actionRow}>
                   <TouchableOpacity style={styles.tcgAudioBtn} onPress={repetirAudio}>
                     <Text style={styles.tcgAudioBtnText}>🔊 OÍR</Text>
@@ -325,7 +326,6 @@ export default function App() {
                     <Text style={styles.tcgResetBtnText}>« CÁMARA »</Text>
                   </TouchableOpacity>
                 </View>
-
               </ScrollView>
             </View>
           </View>
@@ -381,10 +381,8 @@ const styles = StyleSheet.create({
   titleText: { fontSize: 20, fontWeight: 'bold', color: '#333', textAlign: 'center', letterSpacing: 2 },
   screenFrame: { flex: 1, backgroundColor: '#fff', borderRadius: 10, borderWidth: 6, borderColor: '#444', overflow: 'hidden', justifyContent: 'center' },
   camera: { flex: 1 },
-  
   flipBtn: { position: 'absolute', top: 15, right: 15, backgroundColor: 'rgba(0,0,0,0.6)', padding: 8, borderRadius: 25, borderWidth: 2, borderColor: '#fff' },
   flipBtnText: { fontSize: 18 },
-
   tcgCardOuter: { flex: 1, backgroundColor: '#F5D65A', padding: 8 }, 
   tcgCardInner: { flex: 1, borderRadius: 2, borderWidth: 1, borderColor: '#000', padding: 8 },
   tcgHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 5 },
@@ -401,14 +399,11 @@ const styles = StyleSheet.create({
   tcgStatsRibbonText: { fontSize: 8, fontStyle: 'italic', fontWeight: 'bold', textAlign: 'center', color: '#333' },
   tcgDescBox: { marginTop: 5, padding: 5 },
   tcgDescText: { fontSize: 13, lineHeight: 18, color: '#000' },
-  
-  // NUEVA FILA DE ACCIONES
   actionRow: { flexDirection: 'row', justifyContent: 'space-around', marginTop: 20 },
   tcgAudioBtn: { backgroundColor: '#2196F3', paddingVertical: 8, paddingHorizontal: 15, borderRadius: 20, borderWidth: 2, borderColor: '#fff' },
   tcgAudioBtnText: { color: '#fff', fontSize: 11, fontWeight: 'bold' },
   tcgResetBtn: { backgroundColor: '#333', paddingVertical: 8, paddingHorizontal: 15, borderRadius: 20, borderWidth: 1, borderColor: '#F5D65A' },
   tcgResetBtnText: { color: '#F5D65A', fontSize: 11, fontWeight: 'bold' },
-  
   btnBasic: { backgroundColor: '#333', padding: 15, borderRadius: 10 },
   controlsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 15 },
   btnRedo: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', borderWidth: 2, borderColor: '#bbb', justifyContent: 'center', alignItems: 'center' },
