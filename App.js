@@ -5,7 +5,7 @@ import * as Speech from 'expo-speech';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 // --- CONTROL DE VERSIONES ---
-const APP_VERSION = "2026.04.025";
+const APP_VERSION = "2026.04.026";
 
 // --- CONFIGURACIÓN DE IA ---
 const API_KEY = process.env.EXPO_PUBLIC_API_KEY; 
@@ -27,8 +27,11 @@ const TYPES_ES = {
   normal: 'Normal', dark: 'Siniestro', unknown: 'Desc.'
 };
 
+// --- DICCIONARIO DE FORMAS DE POKÉAPI ---
 const sanitizarNombre = (nombreCrudo) => {
   let nombre = nombreCrudo.trim().toLowerCase();
+  
+  // Correcciones tipográficas
   if (nombre.includes('mr. mime') || nombre === 'mr mime') return 'mr-mime';
   if (nombre.includes('mime jr')) return 'mime-jr';
   if (nombre.includes('nidoran') && (nombre.includes('♀') || nombre.includes('f'))) return 'nidoran-f';
@@ -36,6 +39,16 @@ const sanitizarNombre = (nombreCrudo) => {
   if (nombre.includes("farfetch'd") || nombre === 'farfetchd') return 'farfetchd';
   if (nombre.includes("sirfetch'd") || nombre === 'sirfetchd') return 'sirfetchd';
   if (nombre.includes("flabébé") || nombre === 'flabebe') return 'flabebe';
+  
+  // Parches para Pokémon con "Formas" obligatorias en la base de datos
+  if (nombre === 'keldeo' || nombre === 'kailudio') return 'keldeo-ordinary';
+  if (nombre === 'deoxys') return 'deoxys-normal';
+  if (nombre === 'giratina') return 'giratina-altered';
+  if (nombre === 'shaymin') return 'shaymin-land';
+  if (nombre === 'meloetta') return 'meloetta-aria';
+  if (nombre === 'aegislash') return 'aegislash-shield';
+  if (nombre === 'mimikyu') return 'mimikyu-disguised';
+  
   return nombre.replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 };
 
@@ -119,8 +132,8 @@ export default function App() {
     
     // 0. DESPERTAR AUDIO Y FEEDBACK INICIAL
     try {
-      Speech.stop(); // Limpiamos por si había algo sonando
-      Speech.speak("Renderizando Pokémon...", { language: 'es-ES', rate: 1.0 });
+      Speech.stop();
+      Speech.speak("Analizando Pokémon...", { language: 'es-ES', rate: 1.0 });
     } catch(e) {}
 
     setLoading(true);
@@ -188,7 +201,7 @@ export default function App() {
       }
 
       // 2. HITO: POKÉMON DETECTADO
-      Speech.speak(`Pokémon ${cleanName} detectado con éxito. Accediendo a archivos biológicos.`, { language: 'es-ES', rate: 1.0 });
+      Speech.speak(`${rawName} detectado. Accediendo a la base de datos...`, { language: 'es-ES', rate: 1.0 });
 
       const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${cleanName}`);
       
@@ -211,8 +224,8 @@ export default function App() {
       } else {
         const entryEn = speciesData.flavor_text_entries.find(entry => entry.language.name === 'en');
         if (entryEn) {
-          // 3. HITO: TRADUCCIÓN
-          Speech.speak("Iniciando traductor universal para datos recientes.", { language: 'es-ES', rate: 1.0 });
+          // 3. HITO: TRADUCCIÓN SILENCIOSA
+          // Hemos borrado la frase que hablaba Siri aquí para que sea más natural.
           const textoIngles = entryEn.flavor_text.replace(/\n|\f/g, ' ');
           try {
             await new Promise(resolve => setTimeout(resolve, 1500)); 
