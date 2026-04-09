@@ -5,7 +5,7 @@ import * as Speech from 'expo-speech';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 // --- CONTROL DE VERSIONES ---
-const APP_VERSION = "2026.04.026";
+const APP_VERSION = "2026.04.027";
 
 // --- CONFIGURACIÓN DE IA ---
 const API_KEY = process.env.EXPO_PUBLIC_API_KEY; 
@@ -27,11 +27,9 @@ const TYPES_ES = {
   normal: 'Normal', dark: 'Siniestro', unknown: 'Desc.'
 };
 
-// --- DICCIONARIO DE FORMAS DE POKÉAPI ---
 const sanitizarNombre = (nombreCrudo) => {
   let nombre = nombreCrudo.trim().toLowerCase();
   
-  // Correcciones tipográficas
   if (nombre.includes('mr. mime') || nombre === 'mr mime') return 'mr-mime';
   if (nombre.includes('mime jr')) return 'mime-jr';
   if (nombre.includes('nidoran') && (nombre.includes('♀') || nombre.includes('f'))) return 'nidoran-f';
@@ -40,7 +38,6 @@ const sanitizarNombre = (nombreCrudo) => {
   if (nombre.includes("sirfetch'd") || nombre === 'sirfetchd') return 'sirfetchd';
   if (nombre.includes("flabébé") || nombre === 'flabebe') return 'flabebe';
   
-  // Parches para Pokémon con "Formas" obligatorias en la base de datos
   if (nombre === 'keldeo' || nombre === 'kailudio') return 'keldeo-ordinary';
   if (nombre === 'deoxys') return 'deoxys-normal';
   if (nombre === 'giratina') return 'giratina-altered';
@@ -108,6 +105,9 @@ export default function App() {
   };
 
   const hablar = (nombre, tipoIngles, descripcion, evolucion) => {
+    // ESTA ES LA CLAVE: Cortar cualquier monólogo anterior al instante
+    Speech.stop(); 
+    
     const tipoEspanol = TYPES_ES[tipoIngles] || tipoIngles;
     let texto = `¡He detectado a ${nombre}! Es un Pokémon de tipo ${tipoEspanol}.`;
     if (evolucion) texto += ` Evoluciona de ${evolucion}.`;
@@ -116,13 +116,12 @@ export default function App() {
     try {
       Speech.speak(texto, { language: 'es-ES', rate: 0.9, pitch: 1.0 });
     } catch (e) {
-      console.log("El navegador ha bloqueado el audio automático.", e);
+      console.log("Error de audio.", e);
     }
   };
 
   const repetirAudio = () => {
     if (pokemonData) {
-      Speech.stop(); 
       hablar(pokemonData.name, pokemonData.types[0].type.name, pokemonData.descripcion, pokemonData.evoluciona_de);
     }
   };
@@ -130,10 +129,9 @@ export default function App() {
   const identificarPokemon = async () => {
     if (!cameraRef.current) return;
     
-    // 0. DESPERTAR AUDIO Y FEEDBACK INICIAL
     try {
       Speech.stop();
-      Speech.speak("Analizando Pokémon...", { language: 'es-ES', rate: 1.0 });
+      Speech.speak("Analizando...", { language: 'es-ES', rate: 1.0 });
     } catch(e) {}
 
     setLoading(true);
@@ -194,19 +192,22 @@ export default function App() {
       const cleanName = sanitizarNombre(rawName);
 
       if (cleanName === 'unknown' || cleanName === '') {
+        Speech.stop();
         Speech.speak("Análisis fallido. No reconozco al espécimen.", { language: 'es-ES' });
         alert("La IA no reconoce a ningún Pokémon en la foto.");
         setLoading(false);
         return;
       }
 
-      // 2. HITO: POKÉMON DETECTADO
-      Speech.speak(`${rawName} detectado. Accediendo a la base de datos...`, { language: 'es-ES', rate: 1.0 });
+      // 2. HITO: Cortamos el "Analizando..." si hemos llegado rápido
+      Speech.stop();
+      Speech.speak(`${rawName} detectado...`, { language: 'es-ES', rate: 1.0 });
 
       const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${cleanName}`);
       
       if (!res.ok) {
-        Speech.speak("Error de sincronización con la base de datos central.", { language: 'es-ES' });
+        Speech.stop();
+        Speech.speak("Error en la base de datos.", { language: 'es-ES' });
         alert(`La IA cree que es un "${rawName.trim()}", pero no logramos encontrarlo en la base de datos oficial.`);
         setLoading(false);
         return;
@@ -224,13 +225,11 @@ export default function App() {
       } else {
         const entryEn = speciesData.flavor_text_entries.find(entry => entry.language.name === 'en');
         if (entryEn) {
-          // 3. HITO: TRADUCCIÓN SILENCIOSA
-          // Hemos borrado la frase que hablaba Siri aquí para que sea más natural.
           const textoIngles = entryEn.flavor_text.replace(/\n|\f/g, ' ');
           try {
             await new Promise(resolve => setTimeout(resolve, 1500)); 
             const traductor = genAI.getGenerativeModel({ model: modeloUsado || "gemini-1.5-flash" });
-            const promptTrad = `Eres un traductor estricto. Traduce la siguiente descripción de Pokémon al español. Devuelve ÚNICAMENTE el texto traducido de forma natural, sin comillas, sin saludos, sin explicaciones, y sin opciones alternativas. Texto: "${textoIngles}"`;
+            const promptTrad = `Eres un traductor estricto. Traduce al español: "${textoIngles}"`;
             const resultTrad = await traductor.generateContent(promptTrad);
             descripcionLimpia = resultTrad.response.text().trim();
           } catch (errTrad) {
@@ -248,11 +247,12 @@ export default function App() {
       const datosCompletos = { ...data, descripcion: descripcionLimpia, evoluciona_de: evolucionaDe, hp: hp };
       setPokemonData(datosCompletos);
       
-      // 4. HITO FINAL: LECTURA DE CARACTERÍSTICAS
+      // 4. HITO FINAL: Llamamos a hablar() que automáticamente corta cualquier mensaje pendiente
       hablar(datosCompletos.name, datosCompletos.types[0].type.name, descripcionLimpia, evolucionaDe);
       
     } catch (e) {
-      Speech.speak("Error en el sistema. Reinicie escáner.", { language: 'es-ES' });
+      Speech.stop();
+      Speech.speak("Error en la conexión. Reinicie escáner.", { language: 'es-ES' });
       alert("Error en la conexión. Revisa tus datos móviles o la cuota de API.");
     } finally {
       setLoading(false);
